@@ -90,10 +90,35 @@
     if (confirm('ลบทุกชิ้นที่วาดไว้ ' + App.features.size + ' รายการ? การลบนี้ย้อนคืนไม่ได้')) App.clearAll();
   });
 
-  /* ---------- ระบุรัศมีตอนวาดวงกลม / สี่เหลี่ยม ---------- */
+  /* ---------- อ่านพิกัดที่พิมพ์: "13.7563, 100.5018" ---------- */
+  function parseLatLng(text) {
+    var m = String(text || '').trim()
+      .match(/^(-?\d{1,3}(?:\.\d+)?)\s*[, ]\s*(-?\d{1,3}(?:\.\d+)?)$/);
+    if (!m) return null;
+    var lat = parseFloat(m[1]), lng = parseFloat(m[2]);
+    if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
+    return L.latLng(lat, lng);
+  }
+  function fmtLL(ll) { return ll.lat.toFixed(5) + ', ' + ll.lng.toFixed(5); }
+
+  /* ---------- ระบุรัศมี + จุดศูนย์กลาง ตอนวาดวงกลม / สี่เหลี่ยม ---------- */
   var fixedEl = $('fixed-km');
+  var centerEl = $('center-ll');
+
   App.fixedSize = function () { return parseFloat(fixedEl.value); };
   fixedEl.addEventListener('input', function () { App.refreshMode(); });
+
+  // เมื่อวางด้วยการคลิก ให้เติมพิกัดที่ใช้ลงช่อง เพื่อให้เห็น/ทำซ้ำได้
+  App.noteCenter = function (ll) { centerEl.value = fmtLL(ll); };
+
+  $('btn-place-center').addEventListener('click', function () {
+    var ll = parseLatLng(centerEl.value);
+    if (!ll) { alert('กรอกพิกัดจุดศูนย์กลางในรูปแบบ  13.7563, 100.5018'); centerEl.focus(); return; }
+    if (!(App.fixedSize() > 0)) { alert('กรอกรัศมีเป็นกิโลเมตรก่อน'); fixedEl.focus(); return; }
+    var shape = (App.getMode() === 'Rectangle') ? 'Rectangle' : 'Circle';
+    App.placeFixedAt(ll, shape, { pan: true });
+    if (isMobile()) document.body.classList.add('side-closed');
+  });
 
   /* ---------- ชุดวงแหวนรัศมี ---------- */
   var profileEl = $('ring-profile');
@@ -126,11 +151,17 @@
     if (isMobile()) document.body.classList.add('side-closed');
   });
 
+  App.noteRingCenter = function (ll) { $('ring-center-ll').value = fmtLL(ll); };
+
   $('btn-ring-center').addEventListener('click', function () {
     var cfg = App.ringConfig();
     if (!cfg.kms.length) { alert('ใส่รัศมีอย่างน้อย 1 ค่า (หน่วยกิโลเมตร)'); return; }
+    var txt = $('ring-center-ll').value.trim();
+    var ll = txt ? parseLatLng(txt) : map.getCenter();
+    if (!ll) { alert('พิกัดจุดศูนย์กลางต้องอยู่ในรูปแบบ  13.7563, 100.5018'); $('ring-center-ll').focus(); return; }
     App.setMode(null);
-    App.addRingsAtCenter(cfg.kms, { centerMarker: cfg.centerMarker });
+    App.addRings(ll, cfg.kms, { centerMarker: cfg.centerMarker });
+    App.noteRingCenter(ll);
     if (isMobile()) document.body.classList.add('side-closed');
   });
 

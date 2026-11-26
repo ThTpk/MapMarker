@@ -106,6 +106,74 @@
     }
   }
 
+  /* ---------- กล่องบอกขนาดสด ๆ ระหว่างวาด / ปรับขนาด ---------- */
+  var sizeBox = document.getElementById('size-readout');
+  var lastPoint = null;
+
+  function placeSizeBox() {
+    if (!lastPoint) return;
+    var w = sizeBox.offsetWidth, h = sizeBox.offsetHeight;
+    var size = map.getSize();
+    // วางไว้เหนือเมาส์ เพื่อไม่ทับ tooltip ของเครื่องมือวาดที่อยู่ใต้เมาส์
+    var x = lastPoint.x + 18, y = lastPoint.y - h - 14;
+    if (x + w > size.x - 8) x = lastPoint.x - w - 18;   // ชนขอบขวา → ย้ายไปซ้าย
+    if (y < 8) y = lastPoint.y + 26;                    // ชนขอบบน → ย้ายลงล่าง
+    sizeBox.style.left = Math.max(8, x) + 'px';
+    sizeBox.style.top = Math.max(8, y) + 'px';
+  }
+
+  function showSize(html) {
+    if (!html) return;
+    sizeBox.innerHTML = html;
+    sizeBox.hidden = false;
+    placeSizeBox();
+  }
+  function hideSize() { sizeBox.hidden = true; }
+
+  map.on('mousemove', function (e) {
+    lastPoint = e.containerPoint;
+    if (!sizeBox.hidden) placeSizeBox();
+  });
+
+  /** ข้อความขนาดของวงกลม / สี่เหลี่ยม ระหว่างกำลังวาดหรือปรับขนาด */
+  function sizeHtml(layer) {
+    try {
+      if (layer instanceof L.Circle) {
+        var r = layer.getRadius();
+        if (!(r > 0)) return '';
+        var c = layer.getLatLng();
+        return 'รัศมี <b>' + ringText(r) + '</b>  ·  ผ่าศูนย์กลาง <b>' + ringText(r * 2) + '</b>' +
+          '<br>พื้นที่ <b>' + Measure.fmtArea(Math.PI * r * r) + '</b>' +
+          '<br><span class="sub">ศูนย์กลาง ' + c.lat.toFixed(5) + ', ' + c.lng.toFixed(5) + '</span>';
+      }
+      if (layer instanceof L.Polygon && layer.getBounds) {
+        var b = layer.getBounds();
+        if (!b.isValid()) return '';
+        var sw = b.getSouthWest(), ne = b.getNorthEast(), ctr = b.getCenter();
+        var w = sw.distanceTo(L.latLng(sw.lat, ne.lng));
+        var h = sw.distanceTo(L.latLng(ne.lat, sw.lng));
+        if (!(w > 0) && !(h > 0)) return '';
+        return 'กว้าง <b>' + ringText(w) + '</b>  ×  สูง <b>' + ringText(h) + '</b>' +
+          '<br>พื้นที่ <b>' + Measure.fmtArea(Measure.raw(layer).area) + '</b>' +
+          '<br><span class="sub">กึ่งกลาง ' + ctr.lat.toFixed(5) + ', ' + ctr.lng.toFixed(5) + '</span>';
+      }
+    } catch (err) {}
+    return '';
+  }
+
+  // ระหว่างลากวาดวงกลม / สี่เหลี่ยม
+  map.on('pm:drawstart', function (e) {
+    if (e.shape !== 'Circle' && e.shape !== 'Rectangle') return;
+    var wl = e.workingLayer;
+    var update = function () { showSize(sizeHtml(wl)); };
+    map.on('mousemove', update);
+    if (wl && wl.on) wl.on('pm:change pm:centerplaced', update);
+    map.once('pm:drawend', function () {
+      map.off('mousemove', update);
+      hideSize();
+    });
+  });
+
   /* ---------- ลากย้ายรูปที่วาด ---------- */
   function applyDrag(f) {
     if (!f.layer.pm || !f.layer.pm.enableLayerDrag) return;
@@ -297,6 +365,10 @@
       refreshOpenPopup(f);
       App.render();
     });
+    // ปรับขนาดอยู่ → โชว์ขนาดสด ๆ เหมือนตอนวาด
+    layer.on('pm:markerdragstart pm:markerdrag', function () { showSize(sizeHtml(layer)); });
+    layer.on('pm:markerdragend', hideSize);
+
     layer.on('pm:dragstart', function () { onGroupDragStart(f); });
     layer.on('pm:drag', function () { onGroupDrag(f); });
     layer.on('pm:dragend', function () { onGroupDrag(f); groupDrag = null; App.render(); });
@@ -454,14 +526,25 @@
     return (isFinite(km) && km > 0) ? km : 0;
   }
 
-  function onFixedClick(e) {
-    var km = fixedKm();
-    if (!km) return;
-    var layer = (fixedShape === 'Circle')
-      ? L.circle(e.latlng, { radius: km * 1000 })
-      : L.rectangle(L.latLng(e.latlng).toBounds(km * 2000));  // จัตุรัส ครึ่งด้าน = รัศมี
+  /** วางวงกลม/สี่เหลี่ยมตามรัศมีที่ระบุ ที่พิกัดที่กำหนด */
+  App.placeFixedAt = function (latlng, shape, opts) {
+    opts = opts || {};
+    var km = opts.km || fixedKm();
+    if (!km) return null;
+    shape = shape || 'Circle';
+    var ll = L.latLng(latlng);
+    var layer = (shape === 'Circle')
+      ? L.circle(ll, { radius: km * 1000 })
+      : L.rectangle(ll.toBounds(km * 2000));   // จัตุรัส ครึ่งด้าน = รัศมี
     layer.addTo(map);
-    addFeature(layer, fixedShape);
+    var f = addFeature(layer, shape);
+    if (opts.pan) map.setView(ll, Math.max(map.getZoom(), 12));
+    if (App.noteCenter) App.noteCenter(ll);
+    return f;
+  };
+
+  function onFixedClick(e) {
+    App.placeFixedAt(e.latlng, fixedShape);
   }
 
   /** โหมด "วางวงแหวน": คลิกครั้งเดียวแล้วออกจากโหมด */
@@ -469,6 +552,7 @@
     var cfg = (App.ringConfig && App.ringConfig()) || {};
     App.setMode(null);
     App.addRings(e.latlng, cfg.kms, { centerMarker: cfg.centerMarker });
+    if (App.noteRingCenter) App.noteRingCenter(e.latlng);
   }
 
   App.setMode = function (next) {

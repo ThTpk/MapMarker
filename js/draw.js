@@ -8,6 +8,8 @@
   App.colors = COLORS;
   App.activeColor = '#2563eb';
 
+  App.dragAllowed = true;   // ลากย้ายรูปที่วาดได้ตลอด (ปิดได้จากปุ่ม "ย้ายได้")
+
   var seq = { Marker: 0, Line: 0, Polygon: 0, Rectangle: 0, Circle: 0 };
   var uid = 0;
   var order = [];         // ลำดับการสร้าง (ใช้กับปุ่มย้อน)
@@ -102,6 +104,61 @@
       f.labelLayer.setLatLng(northPoint(f.layer));
       f.labelLayer.setIcon(icon);
     }
+  }
+
+  /* ---------- ลากย้ายรูปที่วาด ---------- */
+  function applyDrag(f) {
+    if (!f.layer.pm || !f.layer.pm.enableLayerDrag) return;
+    var on = App.dragAllowed && f.visible && mode !== 'remove';
+    try {
+      if (on) f.layer.pm.enableLayerDrag();
+      else f.layer.pm.disableLayerDrag();
+    } catch (err) {}
+  }
+
+  App.syncDrag = function () { App.features.forEach(applyDrag); };
+
+  App.setDragAllowed = function (on) {
+    App.dragAllowed = !!on;
+    App.syncDrag();
+    var btn = document.getElementById('btn-drag-toggle');
+    if (btn) btn.classList.toggle('active', App.dragAllowed);
+  };
+
+  /* ย้ายทั้งชุด: ลากวงไหนของชุดวงแหวน วงอื่นกับหมุดศูนย์กลางตามไปด้วย */
+  var groupDrag = null;
+
+  function centerOf(layer) {
+    return layer.getLatLng ? layer.getLatLng() : layer.getBounds().getCenter();
+  }
+
+  function groupMembers(f) {
+    var list = [];
+    if (!f.groupId) return list;
+    App.features.forEach(function (o) {
+      if (o.groupId === f.groupId && o.id !== f.id && o.layer.setLatLng) list.push(o);
+    });
+    return list;
+  }
+
+  function onGroupDragStart(f) {
+    var members = groupMembers(f);
+    if (!members.length) { groupDrag = null; return; }
+    groupDrag = {
+      origin: centerOf(f.layer),
+      members: members.map(function (o) { return { f: o, at: o.layer.getLatLng() }; })
+    };
+  }
+
+  function onGroupDrag(f) {
+    if (!groupDrag) return;
+    var now = centerOf(f.layer);
+    var dLat = now.lat - groupDrag.origin.lat;
+    var dLng = now.lng - groupDrag.origin.lng;
+    groupDrag.members.forEach(function (m) {
+      m.f.layer.setLatLng(L.latLng(m.at.lat + dLat, m.at.lng + dLng));
+      syncLabel(m.f);
+    });
   }
 
   var LABELS = { Marker: 'จุดที่', Line: 'เส้นที่', Polygon: 'พื้นที่', Rectangle: 'สี่เหลี่ยมที่', Circle: 'วงกลมที่' };
@@ -220,6 +277,7 @@
       color: opts.color || App.activeColor,
       visible: true,
       ring: !!opts.ring,
+      groupId: opts.groupId || null,
       labelLayer: null
     };
     App.features.set(f.id, f);
@@ -239,8 +297,12 @@
       refreshOpenPopup(f);
       App.render();
     });
+    layer.on('pm:dragstart', function () { onGroupDragStart(f); });
+    layer.on('pm:drag', function () { onGroupDrag(f); });
+    layer.on('pm:dragend', function () { onGroupDrag(f); groupDrag = null; App.render(); });
     layer.on('pm:remove', function () { App.removeFeature(f.id); });
 
+    applyDrag(f);
     App.render();
     return f;
   }
@@ -300,6 +362,7 @@
       if (visible) App.drawnItems.addLayer(f.labelLayer);
       else App.drawnItems.removeLayer(f.labelLayer);
     }
+    applyDrag(f);
     App.render();
   };
 
@@ -330,6 +393,7 @@
 
     ringGroup++;
     var groupName = 'วงแหวน ' + ringGroup;
+    var groupId = 'g' + ringGroup;
     var color = App.activeColor;
     var made = [];
 
@@ -338,14 +402,16 @@
       var c = L.circle(center, { radius: km * 1000 });
       c.addTo(map);
       made.push(addFeature(c, 'Circle', {
-        name: groupName + ' · ' + km + ' กม.', color: color, ring: true
+        name: groupName + ' · ' + km + ' กม.', color: color, ring: true, groupId: groupId
       }));
     });
 
     if (opts.centerMarker) {
       var m = L.marker(center);
       m.addTo(map);
-      made.push(addFeature(m, 'Marker', { name: 'ศูนย์กลาง ' + groupName, color: color }));
+      made.push(addFeature(m, 'Marker', {
+        name: 'ศูนย์กลาง ' + groupName, color: color, groupId: groupId
+      }));
     }
 
     var maxR = kms[kms.length - 1] * 1000;
@@ -366,11 +432,10 @@
     Rectangle: 'คลิกมุมหนึ่ง แล้วคลิกมุมตรงข้าม',
     Circle: 'คลิกจุดศูนย์กลาง แล้วคลิกเพื่อกำหนดรัศมี',
     edit: 'คลิกรูปที่ต้องการแก้ แล้วลากจุดสีขาวเพื่อปรับรูปทรง',
-    drag: 'ลากรูปทั้งชิ้นเพื่อย้ายตำแหน่ง',
     remove: 'คลิกรูปที่ต้องการลบ',
     rings: 'คลิกบนแผนที่เพื่อวางจุดศูนย์กลางของชุดวงแหวน'
   };
-  var DEFAULT_HINT = 'เลือกเครื่องมือ แล้วคลิกบนแผนที่ · กด <kbd>Esc</kbd> เพื่อยกเลิก';
+  var DEFAULT_HINT = 'ลากรูปที่วาดไว้เพื่อย้ายตำแหน่งได้เลย · เลือกเครื่องมือแล้วคลิกบนแผนที่เพื่อวาดใหม่ · กด <kbd>Esc</kbd> เพื่อยกเลิก';
 
   var mode = null;
   // ปิดเฉพาะโหมดที่เปิดอยู่ (ถ้าสั่งปิดโหมดที่ไม่ได้เปิด Geoman จะขึ้น warning ใน console)
@@ -415,7 +480,6 @@
 
     var km = fixedKm();
     if (mode === 'edit') map.pm.enableGlobalEditMode();
-    else if (mode === 'drag') map.pm.enableGlobalDragMode();
     else if (mode === 'remove') map.pm.enableGlobalRemovalMode();
     else if (mode === 'rings') map.on('click', onRingClick);
     else if (km && (mode === 'Circle' || mode === 'Rectangle')) {
@@ -436,6 +500,7 @@
         km + ' กม. (คลิกซ้ำวางได้หลายจุด)';
     }
     document.getElementById('hint').innerHTML = hint;
+    App.syncDrag();   // โหมดลบ: ปิดการลากชั่วคราว กันลบผิดชิ้น
   };
 
   /** เรียกเมื่อค่ารัศมีที่กรอกเปลี่ยน เพื่อสลับระหว่างวาดเอง / ระบุขนาด */

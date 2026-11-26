@@ -43,7 +43,7 @@
           <button type="button" data-mode="Rectangle"><b>▭</b>สี่เหลี่ยม</button>
           <button type="button" data-mode="Circle"><b>◯</b>วงกลม</button>
           <button type="button" data-mode="edit"><b>✎</b>แก้รูป</button>
-          <button type="button" data-mode="drag"><b>✥</b>ลาก</button>
+          <button type="button" id="btn-drag-toggle" class="active" title="เปิด/ปิดการลากย้ายรูปที่วาด"><b>✥</b>ย้ายได้</button>
           <button type="button" data-mode="remove" class="danger"><b>🗑</b>ลบ</button>
         </div>
         <div class="row-between">
@@ -105,8 +105,8 @@
   <button type="button" id="btn-open" class="fab only-mobile">เครื่องมือ</button>
 </div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.17.0/dist/leaflet-geoman.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.17.0/dist/leaflet-geoman.min.js" crossorigin="anonymous"></script>
 <script src="js/measure.js"></script>
 <script src="js/map.js"></script>
 <script src="js/draw.js"></script>

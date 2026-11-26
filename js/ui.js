@@ -77,6 +77,13 @@
     if (isMobile()) document.body.classList.add('side-closed');
   });
 
+  $('btn-drag-toggle').addEventListener('click', function () {
+    App.setDragAllowed(!App.dragAllowed);
+    $('hint').innerHTML = App.dragAllowed
+      ? 'เปิดการย้ายแล้ว — ลากรูปที่วาดไว้เพื่อย้ายตำแหน่งได้เลย'
+      : 'ล็อกตำแหน่งแล้ว — ลากรูปไม่ได้ กดปุ่ม "ย้ายได้" อีกครั้งเพื่อปลดล็อก';
+  });
+
   $('btn-undo').addEventListener('click', function () { App.undoLast(); });
 
   $('btn-clear').addEventListener('click', function () {

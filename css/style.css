@@ -171,6 +171,25 @@ kbd {
 .size-readout b { font-variant-numeric: tabular-nums; color: var(--accent); }
 .size-readout .sub { color: var(--muted); font-size: 11px; }
 
+/* แถบแจ้งผลการลบ + ปุ่มเลิกทำ */
+.toast {
+  position: absolute; z-index: 1000;
+  left: 50%; bottom: 18px; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 12px;
+  max-width: 90%;
+  padding: 9px 12px 9px 14px;
+  border: 1px solid var(--line); border-radius: 10px;
+  background: var(--panel); color: var(--text);
+  font-size: 13px; box-shadow: var(--shadow);
+}
+.toast span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.toast button {
+  flex: none; padding: 5px 10px;
+  border: 0; border-radius: 7px;
+  background: var(--accent); color: #fff;
+  font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+}
+
 /* ---------- ชุดวงแหวนรัศมี ---------- */
 #ring-custom, #ring-center-ll {
   width: 100%; margin-top: 8px; padding: 8px 10px;

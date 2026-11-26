@@ -48,7 +48,7 @@
       del.className = 'del';
       del.innerHTML = '✕';
       del.title = 'ลบชิ้นนี้';
-      del.addEventListener('click', function () { App.removeFeature(f.id); });
+      del.addEventListener('click', function () { App.removeFeature(f.id, { undo: true }); });
 
       acts.appendChild(vis);
       acts.appendChild(del);

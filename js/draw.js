@@ -174,6 +174,29 @@
     });
   });
 
+  /* ---------- แถบแจ้งผล + เลิกทำ ---------- */
+  var toastEl = document.getElementById('toast');
+  var toastTimer = null;
+
+  function hideToast() { clearTimeout(toastTimer); toastEl.hidden = true; }
+
+  function showToast(text, actionText, onAction) {
+    clearTimeout(toastTimer);
+    toastEl.innerHTML = '';
+    var span = document.createElement('span');
+    span.textContent = text;
+    toastEl.appendChild(span);
+    if (actionText) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = actionText;
+      b.addEventListener('click', function () { hideToast(); onAction(); });
+      toastEl.appendChild(b);
+    }
+    toastEl.hidden = false;
+    toastTimer = setTimeout(hideToast, 8000);
+  }
+
   /* ---------- ลากย้ายรูปที่วาด ---------- */
   function applyDrag(f) {
     if (!f.layer.pm || !f.layer.pm.enableLayerDrag) return;
@@ -311,7 +334,7 @@
     });
     pop.querySelector('.del').addEventListener('click', function () {
       map.closePopup();
-      App.removeFeature(f.id);
+      App.removeFeature(f.id, { undo: true });
     });
   });
 
@@ -374,6 +397,16 @@
     layer.on('pm:dragend', function () { onGroupDrag(f); groupDrag = null; App.render(); });
     layer.on('pm:remove', function () { App.removeFeature(f.id); });
 
+    // คลิกขวาที่รูป = ลบชิ้นนั้นทันที (มีปุ่มเลิกทำให้)
+    layer.on('contextmenu', function (e) {
+      if (e.originalEvent) {
+        e.originalEvent.preventDefault();
+        e.originalEvent.stopPropagation();
+      }
+      if (L.DomEvent && L.DomEvent.stop) L.DomEvent.stop(e);
+      App.removeFeature(f.id, { undo: true });
+    });
+
     applyDrag(f);
     App.render();
     return f;
@@ -390,9 +423,27 @@
   map.on('pm:create', function (e) { addFeature(e.layer, e.shape); });
 
   /* ---------- API ที่ sidebar เรียกใช้ ---------- */
-  App.removeFeature = function (id) {
+  /** เอาชิ้นที่เพิ่งลบกลับมา (ใช้กับปุ่ม "เลิกทำ") */
+  function restoreFeature(f) {
+    if (!f || App.features.has(f.id)) return;
+    App.features.set(f.id, f);
+    order.push(f.id);
+    if (f.visible) App.drawnItems.addLayer(f.layer);
+    syncLabel(f);
+    applyDrag(f);
+    App.render();
+  }
+
+  App.removeFeature = function (id, opts) {
+    opts = opts || {};
     var f = App.features.get(id);
     if (!f) return;
+    if (opts.undo) {
+      showToast('ลบ "' + f.name + '" แล้ว', 'เลิกทำ', function () {
+        restoreFeature(f);
+        map.closePopup();
+      });
+    }
     // ปิดโหมดแก้ไขของชิ้นนี้ก่อน ไม่งั้นจุดจับ (vertex) จะค้างบนแผนที่
     try { if (f.layer.pm && f.layer.pm.enabled && f.layer.pm.enabled()) f.layer.pm.disable(); } catch (err) {}
     if (f.labelLayer) {
@@ -507,7 +558,7 @@
     remove: 'คลิกรูปที่ต้องการลบ',
     rings: 'คลิกบนแผนที่เพื่อวางจุดศูนย์กลางของชุดวงแหวน'
   };
-  var DEFAULT_HINT = 'ลากรูปที่วาดไว้เพื่อย้ายตำแหน่งได้เลย · เลือกเครื่องมือแล้วคลิกบนแผนที่เพื่อวาดใหม่ · กด <kbd>Esc</kbd> เพื่อยกเลิก';
+  var DEFAULT_HINT = 'ลากรูปที่วาดไว้เพื่อย้ายตำแหน่ง · <b>คลิกขวาที่รูปเพื่อลบชิ้นนั้น</b> (มีปุ่มเลิกทำ) · เลือกเครื่องมือแล้วคลิกบนแผนที่เพื่อวาดใหม่ · กด <kbd>Esc</kbd> เพื่อยกเลิก';
 
   var mode = null;
   // ปิดเฉพาะโหมดที่เปิดอยู่ (ถ้าสั่งปิดโหมดที่ไม่ได้เปิด Geoman จะขึ้น warning ใน console)

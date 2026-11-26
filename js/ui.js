@@ -16,7 +16,8 @@
       var k = Measure.kind(f.layer);
       var raw = Measure.raw(f.layer);
       if (k === 'line') totalLen += raw.length;
-      totalArea += raw.area;
+      // วงแหวนชุดเดียวกันซ้อนทับกัน การบวกพื้นที่รวมจึงไม่มีความหมาย
+      if (!f.ring) totalArea += raw.area;
 
       var li = document.createElement('li');
       if (!f.visible) li.className = 'hidden-feat';
@@ -80,6 +81,50 @@
 
   $('btn-clear').addEventListener('click', function () {
     if (confirm('ลบทุกชิ้นที่วาดไว้ ' + App.features.size + ' รายการ? การลบนี้ย้อนคืนไม่ได้')) App.clearAll();
+  });
+
+  /* ---------- ระบุรัศมีตอนวาดวงกลม / สี่เหลี่ยม ---------- */
+  var fixedEl = $('fixed-km');
+  App.fixedSize = function () { return parseFloat(fixedEl.value); };
+  fixedEl.addEventListener('input', function () { App.refreshMode(); });
+
+  /* ---------- ชุดวงแหวนรัศมี ---------- */
+  var profileEl = $('ring-profile');
+  var customEl = $('ring-custom');
+
+  function parseKms(text) {
+    return String(text || '')
+      .split(/[,\s]+/)
+      .map(function (s) { return parseFloat(s); })
+      .filter(function (n) { return isFinite(n) && n > 0; });
+  }
+
+  /** draw.js เรียกใช้ตอนวางวงแหวน */
+  App.ringConfig = function () {
+    var v = profileEl.value;
+    return {
+      kms: v === 'custom' ? parseKms(customEl.value) : parseKms(v),
+      centerMarker: $('ring-center').checked
+    };
+  };
+
+  profileEl.addEventListener('change', function () {
+    customEl.hidden = this.value !== 'custom';
+    if (!customEl.hidden) customEl.focus();
+  });
+
+  $('btn-ring-click').addEventListener('click', function () {
+    if (!App.ringConfig().kms.length) { alert('ใส่รัศมีอย่างน้อย 1 ค่า (หน่วยกิโลเมตร)'); return; }
+    App.setMode('rings');
+    if (isMobile()) document.body.classList.add('side-closed');
+  });
+
+  $('btn-ring-center').addEventListener('click', function () {
+    var cfg = App.ringConfig();
+    if (!cfg.kms.length) { alert('ใส่รัศมีอย่างน้อย 1 ค่า (หน่วยกิโลเมตร)'); return; }
+    App.setMode(null);
+    App.addRingsAtCenter(cfg.kms, { centerMarker: cfg.centerMarker });
+    if (isMobile()) document.body.classList.add('side-closed');
   });
 
   /* ---------- จานสี ---------- */

@@ -136,6 +136,49 @@ kbd {
 .link.danger { color: var(--danger); margin-left: auto; }
 .hint { margin: 10px 0 0; font-size: 12px; color: var(--muted); }
 
+.fixed-size { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.fixed-size label { flex: 1; font-size: 12px; color: var(--muted); }
+.fixed-size input {
+  width: 108px; flex: none; padding: 6px 8px;
+  border: 1px solid var(--line); border-radius: 8px;
+  background: var(--panel-2); color: var(--text); font: inherit; font-size: 12px;
+}
+
+/* ---------- ชุดวงแหวนรัศมี ---------- */
+#ring-custom {
+  width: 100%; margin-top: 8px; padding: 8px 10px;
+  border: 1px solid var(--line); border-radius: 8px;
+  background: var(--panel-2); color: var(--text); font: inherit; font-size: 13px;
+}
+.check {
+  display: flex; align-items: center; gap: 7px;
+  margin-top: 10px; font-size: 12px; color: var(--muted); cursor: pointer;
+}
+.check input { accent-color: var(--accent); }
+.ring-actions { display: flex; gap: 6px; margin-top: 10px; }
+.ring-actions button {
+  flex: 1; padding: 8px 6px;
+  border: 1px solid var(--accent); border-radius: 8px;
+  background: var(--accent); color: #fff;
+  font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.ring-actions button.ghost { background: var(--panel); border-color: var(--line); color: var(--text); font-weight: 500; }
+.ring-actions button.ghost:hover { background: var(--panel-2); }
+.ring-actions button.active { background: var(--danger); border-color: var(--danger); }
+
+/* ป้ายรัศมีบนวงกลม */
+.ring-label { background: none; border: 0; }
+.ring-chip {
+  position: absolute;
+  transform: translate(-50%, -130%);
+  white-space: nowrap;
+  padding: 1px 7px;
+  border: 1.5px solid currentColor; border-radius: 99px;
+  background: var(--panel);
+  font-size: 11px; font-weight: 700; line-height: 1.5;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .25);
+}
+
 /* ---------- feature list ---------- */
 .count {
   padding: 1px 7px; border-radius: 99px;

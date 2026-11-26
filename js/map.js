@@ -129,7 +129,7 @@ window.App = (function () {
     sel.appendChild(o);
   });
   sel.addEventListener('change', function () { setBasemap(this.value); });
-  setBasemap(prefersDark ? 'dark' : 'osm');
+  setBasemap('sat');   // ค่าเริ่มต้น: ภาพถ่ายดาวเทียม
 
   return {
     map: map,

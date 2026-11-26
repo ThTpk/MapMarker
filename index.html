@@ -50,7 +50,29 @@
           <div class="colors" id="colors" role="radiogroup" aria-label="เลือกสี"></div>
           <button type="button" id="btn-undo" class="link" disabled>↶ ย้อนชิ้นสุดท้าย</button>
         </div>
+        <div class="fixed-size">
+          <label for="fixed-km">วงกลม / สี่เหลี่ยม — ระบุรัศมี (กม.)</label>
+          <input id="fixed-km" type="number" min="0.01" step="0.5" placeholder="เว้นว่าง = ลากวาดเอง">
+        </div>
         <p class="hint" id="hint">เลือกเครื่องมือ แล้วคลิกบนแผนที่ · กด <kbd>Esc</kbd> เพื่อยกเลิก</p>
+      </section>
+
+      <section class="panel">
+        <h2>ชุดวงแหวนรัศมี</h2>
+        <select id="ring-profile" aria-label="เลือกชุดรัศมี">
+          <option value="1,2,3,4">1 / 2 / 3 / 4 กม.</option>
+          <option value="1,2,5,10">1 / 2 / 5 / 10 กม.</option>
+          <option value="5,10,15,20">5 / 10 / 15 / 20 กม.</option>
+          <option value="custom">กำหนดเอง…</option>
+        </select>
+        <input id="ring-custom" type="text" placeholder="รัศมีเป็น กม. คั่นด้วยจุลภาค เช่น 0.5, 1, 2.5" hidden>
+        <label class="check">
+          <input type="checkbox" id="ring-center" checked> ปักหมุดจุดศูนย์กลางด้วย
+        </label>
+        <div class="ring-actions">
+          <button type="button" id="btn-ring-click" data-mode="rings">คลิกเลือกจุดบนแผนที่</button>
+          <button type="button" id="btn-ring-center" class="ghost">วางกลางจอ</button>
+        </div>
       </section>
 
       <section class="panel">

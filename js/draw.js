@@ -63,7 +63,44 @@
     } else if (k === 'line') {
       f.layer.setStyle({ color: f.color, weight: 4, opacity: 0.95 });
     } else {
-      f.layer.setStyle({ color: f.color, weight: 3, fillColor: f.color, fillOpacity: 0.18 });
+      f.layer.setStyle({
+        color: f.color,
+        weight: f.ring ? 2 : 3,
+        fillColor: f.color,
+        fillOpacity: f.ring ? 0.05 : 0.18   // วงแหวนซ้อนกันหลายวง ต้องโปร่งกว่าปกติ
+      });
+    }
+    syncLabel(f);
+  }
+
+  /* ---------- ป้ายบอกรัศมีของวงกลม ---------- */
+  function km3(m) { return Math.round(m / 1000 * 1000) / 1000; }
+
+  /** ข้อความสั้นบนป้าย: 5 กม., 7.33 กม., 800 ม. */
+  function ringText(m) {
+    return m >= 1000 ? (Math.round(m / 10) / 100) + ' กม.' : Math.round(m) + ' ม.';
+  }
+
+  function northPoint(circle) {
+    var c = circle.getLatLng();
+    return L.latLng(c.lat + (circle.getRadius() / 6378137) * (180 / Math.PI), c.lng);
+  }
+
+  function syncLabel(f) {
+    if (Measure.kind(f.layer) !== 'circle') return;
+    var icon = L.divIcon({
+      className: 'ring-label',
+      iconSize: [0, 0],
+      iconAnchor: [0, 0],
+      html: '<span class="ring-chip" style="border-color:' + f.color + ';color:' + f.color + '">' +
+        esc(ringText(f.layer.getRadius())) + '</span>'
+    });
+    if (!f.labelLayer) {
+      f.labelLayer = L.marker(northPoint(f.layer), { icon: icon, interactive: false, keyboard: false });
+      if (f.visible) App.drawnItems.addLayer(f.labelLayer);
+    } else {
+      f.labelLayer.setLatLng(northPoint(f.layer));
+      f.labelLayer.setIcon(icon);
     }
   }
 
@@ -91,6 +128,10 @@
       '<input type="text" class="p-name" maxlength="80" value="' + esc(f.name) + '">' +
       '<label>รายละเอียด</label>' +
       '<textarea class="p-note" rows="2" placeholder="โน้ตเพิ่มเติม">' + esc(f.note) + '</textarea>' +
+      (Measure.kind(f.layer) === 'circle'
+        ? '<label>รัศมี (กิโลเมตร)</label>' +
+          '<input type="number" class="p-radius" min="0.01" step="0.5" value="' + km3(f.layer.getRadius()) + '">'
+        : '') +
       '<div class="measure">' + measureHtml(f) + '</div>' +
       '<label>สี</label><div class="pop-colors">' +
       COLORS.map(function (c) {
@@ -122,6 +163,16 @@
       f.note = this.value;
       App.render();
     });
+    var rad = pop.querySelector('.p-radius');
+    if (rad) rad.addEventListener('input', function () {
+      var km = parseFloat(this.value);
+      if (!isFinite(km) || km <= 0) return;
+      f.layer.setRadius(km * 1000);
+      syncLabel(f);
+      refreshOpenPopup(f);
+      App.render();
+    });
+
     pop.querySelectorAll('.pop-colors button').forEach(function (b) {
       b.addEventListener('click', function () {
         App.setColor(f.id, this.getAttribute('data-color'));
@@ -141,24 +192,35 @@
 
   /* อัปเดตเฉพาะกล่องค่าวัด ถ้า popup เปิดอยู่ (ไม่รีเซ็ตช่องที่กำลังพิมพ์) */
   function refreshOpenPopup(f) {
-    var box = document.querySelector('.pop[data-id="' + f.id + '"] .measure');
+    var pop = document.querySelector('.pop[data-id="' + f.id + '"]');
+    if (!pop) return;
+    var box = pop.querySelector('.measure');
     if (box) box.innerHTML = measureHtml(f);
+    var rad = pop.querySelector('.p-radius');
+    if (rad && document.activeElement !== rad) rad.value = km3(f.layer.getRadius());
   }
 
   /* ---------- ทะเบียนรูปที่วาด ---------- */
-  function addFeature(layer, shape) {
+  function addFeature(layer, shape, opts) {
+    opts = opts || {};
     shape = shape || 'Marker';
-    if (seq[shape] == null) seq[shape] = 0;
-    seq[shape]++;
+    var name = opts.name;
+    if (!name) {
+      if (seq[shape] == null) seq[shape] = 0;
+      seq[shape]++;
+      name = (LABELS[shape] || 'รูปที่') + ' ' + seq[shape];
+    }
     uid++;
     var f = {
       id: 'f' + uid,
       layer: layer,
       shape: shape,
-      name: (LABELS[shape] || 'รูปที่') + ' ' + seq[shape],
+      name: name,
       note: '',
-      color: App.activeColor,
-      visible: true
+      color: opts.color || App.activeColor,
+      visible: true,
+      ring: !!opts.ring,
+      labelLayer: null
     };
     App.features.set(f.id, f);
     order.push(f.id);
@@ -173,6 +235,7 @@
       'pm:rotate', 'pm:rotateend', 'pm:cut'
     ].join(' ');
     layer.on(CHANGE_EVENTS, function () {
+      syncLabel(f);
       refreshOpenPopup(f);
       App.render();
     });
@@ -198,6 +261,11 @@
     if (!f) return;
     // ปิดโหมดแก้ไขของชิ้นนี้ก่อน ไม่งั้นจุดจับ (vertex) จะค้างบนแผนที่
     try { if (f.layer.pm && f.layer.pm.enabled && f.layer.pm.enabled()) f.layer.pm.disable(); } catch (err) {}
+    if (f.labelLayer) {
+      App.drawnItems.removeLayer(f.labelLayer);
+      if (map.hasLayer(f.labelLayer)) map.removeLayer(f.labelLayer);
+      f.labelLayer = null;
+    }
     if (App.drawnItems.hasLayer(f.layer)) App.drawnItems.removeLayer(f.layer);
     if (map.hasLayer(f.layer)) map.removeLayer(f.layer);
     dropFeature(id);
@@ -206,6 +274,7 @@
   App.clearAll = function () {
     Array.from(App.features.keys()).forEach(App.removeFeature);
     Object.keys(seq).forEach(function (k) { seq[k] = 0; });
+    ringGroup = 0;
   };
 
   App.undoLast = function () {
@@ -227,6 +296,10 @@
     f.visible = visible;
     if (visible) App.drawnItems.addLayer(f.layer);
     else App.drawnItems.removeLayer(f.layer);
+    if (f.labelLayer) {
+      if (visible) App.drawnItems.addLayer(f.labelLayer);
+      else App.drawnItems.removeLayer(f.labelLayer);
+    }
     App.render();
   };
 
@@ -244,6 +317,47 @@
     applyGlobalOptions();
   };
 
+  /* ---------- ชุดวงแหวนรัศมี (วงกลมซ้อนกันหลายวง) ---------- */
+  var ringGroup = 0;
+
+  App.addRings = function (center, kms, opts) {
+    opts = opts || {};
+    kms = (kms || [])
+      .map(Number)
+      .filter(function (k) { return isFinite(k) && k > 0; })
+      .sort(function (a, b) { return a - b; });
+    if (!kms.length) return [];
+
+    ringGroup++;
+    var groupName = 'วงแหวน ' + ringGroup;
+    var color = App.activeColor;
+    var made = [];
+
+    // วาดวงใหญ่ก่อน วงเล็กจะได้อยู่ชั้นบนและคลิกเลือกได้
+    kms.slice().reverse().forEach(function (km) {
+      var c = L.circle(center, { radius: km * 1000 });
+      c.addTo(map);
+      made.push(addFeature(c, 'Circle', {
+        name: groupName + ' · ' + km + ' กม.', color: color, ring: true
+      }));
+    });
+
+    if (opts.centerMarker) {
+      var m = L.marker(center);
+      m.addTo(map);
+      made.push(addFeature(m, 'Marker', { name: 'ศูนย์กลาง ' + groupName, color: color }));
+    }
+
+    var maxR = kms[kms.length - 1] * 1000;
+    map.fitBounds(L.latLng(center).toBounds(maxR * 2.4), { maxZoom: 16 });
+    return made;
+  };
+
+  /** วางชุดวงแหวนกลางจอ */
+  App.addRingsAtCenter = function (kms, opts) {
+    return App.addRings(map.getCenter(), kms, opts);
+  };
+
   /* ---------- โหมดเครื่องมือ ---------- */
   var HINTS = {
     Marker: 'คลิกบนแผนที่เพื่อปักหมุด (ปักต่อเนื่องได้)',
@@ -253,31 +367,81 @@
     Circle: 'คลิกจุดศูนย์กลาง แล้วคลิกเพื่อกำหนดรัศมี',
     edit: 'คลิกรูปที่ต้องการแก้ แล้วลากจุดสีขาวเพื่อปรับรูปทรง',
     drag: 'ลากรูปทั้งชิ้นเพื่อย้ายตำแหน่ง',
-    remove: 'คลิกรูปที่ต้องการลบ'
+    remove: 'คลิกรูปที่ต้องการลบ',
+    rings: 'คลิกบนแผนที่เพื่อวางจุดศูนย์กลางของชุดวงแหวน'
   };
   var DEFAULT_HINT = 'เลือกเครื่องมือ แล้วคลิกบนแผนที่ · กด <kbd>Esc</kbd> เพื่อยกเลิก';
 
   var mode = null;
+  // ปิดเฉพาะโหมดที่เปิดอยู่ (ถ้าสั่งปิดโหมดที่ไม่ได้เปิด Geoman จะขึ้น warning ใน console)
   function disableAll() {
-    map.pm.disableDraw();
-    map.pm.disableGlobalEditMode();
-    map.pm.disableGlobalDragMode();
-    map.pm.disableGlobalRemovalMode();
+    if (map.pm.globalDrawModeEnabled()) map.pm.disableDraw();
+    if (map.pm.globalEditModeEnabled()) map.pm.disableGlobalEditMode();
+    if (map.pm.globalDragModeEnabled()) map.pm.disableGlobalDragMode();
+    if (map.pm.globalRemovalModeEnabled()) map.pm.disableGlobalRemovalMode();
+  }
+
+  /** โหมดวงกลม/สี่เหลี่ยมแบบระบุขนาด: คลิกจุดศูนย์กลาง 1 ครั้งได้ขนาดตามที่กรอก */
+  var fixedShape = null;
+
+  function fixedKm() {
+    var km = App.fixedSize ? App.fixedSize() : 0;
+    return (isFinite(km) && km > 0) ? km : 0;
+  }
+
+  function onFixedClick(e) {
+    var km = fixedKm();
+    if (!km) return;
+    var layer = (fixedShape === 'Circle')
+      ? L.circle(e.latlng, { radius: km * 1000 })
+      : L.rectangle(L.latLng(e.latlng).toBounds(km * 2000));  // จัตุรัส ครึ่งด้าน = รัศมี
+    layer.addTo(map);
+    addFeature(layer, fixedShape);
+  }
+
+  /** โหมด "วางวงแหวน": คลิกครั้งเดียวแล้วออกจากโหมด */
+  function onRingClick(e) {
+    var cfg = (App.ringConfig && App.ringConfig()) || {};
+    App.setMode(null);
+    App.addRings(e.latlng, cfg.kms, { centerMarker: cfg.centerMarker });
   }
 
   App.setMode = function (next) {
     disableAll();
+    map.off('click', onRingClick);
+    map.off('click', onFixedClick);
+    fixedShape = null;
     mode = (next === mode) ? null : next;
 
+    var km = fixedKm();
     if (mode === 'edit') map.pm.enableGlobalEditMode();
     else if (mode === 'drag') map.pm.enableGlobalDragMode();
     else if (mode === 'remove') map.pm.enableGlobalRemovalMode();
-    else if (mode) map.pm.enableDraw(mode);
+    else if (mode === 'rings') map.on('click', onRingClick);
+    else if (km && (mode === 'Circle' || mode === 'Rectangle')) {
+      fixedShape = mode;                 // ระบุขนาดไว้แล้ว → คลิกจุดเดียวพอ
+      map.on('click', onFixedClick);
+    } else if (mode) map.pm.enableDraw(mode);
 
-    document.querySelectorAll('#tools button').forEach(function (b) {
+    map.getContainer().style.cursor = (mode === 'rings' || fixedShape) ? 'crosshair' : '';
+
+    document.querySelectorAll('[data-mode]').forEach(function (b) {
       b.classList.toggle('active', b.getAttribute('data-mode') === mode);
     });
-    document.getElementById('hint').innerHTML = mode ? HINTS[mode] : DEFAULT_HINT;
+
+    var hint = mode ? HINTS[mode] : DEFAULT_HINT;
+    if (fixedShape) {
+      hint = 'คลิกบนแผนที่เพื่อวาง' +
+        (fixedShape === 'Circle' ? 'วงกลมรัศมี ' : 'สี่เหลี่ยมจัตุรัสครึ่งด้าน ') +
+        km + ' กม. (คลิกซ้ำวางได้หลายจุด)';
+    }
+    document.getElementById('hint').innerHTML = hint;
+  };
+
+  /** เรียกเมื่อค่ารัศมีที่กรอกเปลี่ยน เพื่อสลับระหว่างวาดเอง / ระบุขนาด */
+  App.refreshMode = function () {
+    var m = mode;
+    if (m === 'Circle' || m === 'Rectangle') { App.setMode(null); App.setMode(m); }
   };
   App.getMode = function () { return mode; };
 })();

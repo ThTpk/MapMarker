@@ -308,6 +308,11 @@ body.side-hidden #sidebar { display: none; }
   background: var(--accent-soft); font-size: 12px; line-height: 1.6;
 }
 .pop .measure b { font-variant-numeric: tabular-nums; }
+.pop .pop-check {
+  display: flex; align-items: center; gap: 7px;
+  margin: 0 0 10px; font-size: 12px; color: var(--text); cursor: pointer;
+}
+.pop .pop-check input { accent-color: var(--accent); }
 .pop .pop-colors { display: flex; gap: 5px; margin-bottom: 10px; }
 .pop .pop-colors button { width: 18px; height: 18px; padding: 0; border: 2px solid transparent; border-radius: 50%; cursor: pointer; box-shadow: 0 0 0 1px var(--line) inset; }
 .pop .pop-colors button.active { border-color: var(--text); }

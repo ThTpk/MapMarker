@@ -120,6 +120,12 @@
     if (isMobile()) document.body.classList.add('side-closed');
   });
 
+  /* ---------- เปิด/ปิดจุดศูนย์กลางของวงกลมทุกวง ---------- */
+  $('show-centers').addEventListener('change', function () {
+    App.setAllCenterDots(this.checked);
+    map.closePopup();   // ป็อปอัปที่เปิดอยู่จะได้ไม่ค้างค่าเก่า
+  });
+
   /* ---------- ชุดวงแหวนรัศมี ---------- */
   var profileEl = $('ring-profile');
   var customEl = $('ring-custom');

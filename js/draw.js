@@ -73,6 +73,7 @@
       });
     }
     syncLabel(f);
+    syncCenterDot(f);
   }
 
   /* ---------- ป้ายบอกรัศมีของวงกลม ---------- */
@@ -87,6 +88,46 @@
     var c = circle.getLatLng();
     return L.latLng(c.lat + (circle.getRadius() / 6378137) * (180 / Math.PI), c.lng);
   }
+
+  /** จุดศูนย์กลางของวงกลม (เปิด/ปิดได้รายวง หรือทั้งหมดพร้อมกัน) */
+  App.showCircleCenters = true;
+
+  function syncCenterDot(f) {
+    if (Measure.kind(f.layer) !== 'circle') return;
+    var want = (f.showCenter !== false) && f.visible;
+    if (want) {
+      var ll = f.layer.getLatLng();
+      if (!f.centerDot) {
+        f.centerDot = L.circleMarker(ll, {
+          radius: 4, color: '#ffffff', weight: 2,
+          fillColor: f.color, fillOpacity: 1, interactive: false
+        });
+      } else {
+        f.centerDot.setLatLng(ll);
+        f.centerDot.setStyle({ fillColor: f.color });
+      }
+      if (!App.drawnItems.hasLayer(f.centerDot)) App.drawnItems.addLayer(f.centerDot);
+    } else if (f.centerDot) {
+      App.drawnItems.removeLayer(f.centerDot);
+      if (map.hasLayer(f.centerDot)) map.removeLayer(f.centerDot);
+    }
+  }
+
+  App.setCenterDot = function (id, on) {
+    var f = App.features.get(id);
+    if (!f) return;
+    f.showCenter = !!on;
+    syncCenterDot(f);
+  };
+
+  App.setAllCenterDots = function (on) {
+    App.showCircleCenters = !!on;
+    App.features.forEach(function (f) {
+      if (Measure.kind(f.layer) !== 'circle') return;
+      f.showCenter = App.showCircleCenters;
+      syncCenterDot(f);
+    });
+  };
 
   function syncLabel(f) {
     if (Measure.kind(f.layer) !== 'circle') return;
@@ -251,6 +292,7 @@
     groupDrag.members.forEach(function (m) {
       m.f.layer.setLatLng(L.latLng(m.at.lat + dLat, m.at.lng + dLng));
       syncLabel(m.f);
+      syncCenterDot(m.f);
     });
   }
 
@@ -280,7 +322,9 @@
       '<textarea class="p-note" rows="2" placeholder="โน้ตเพิ่มเติม">' + esc(f.note) + '</textarea>' +
       (Measure.kind(f.layer) === 'circle'
         ? '<label>รัศมี (กิโลเมตร)</label>' +
-          '<input type="number" class="p-radius" min="0.01" step="0.5" value="' + km3(f.layer.getRadius()) + '">'
+          '<input type="number" class="p-radius" min="0.01" step="0.5" value="' + km3(f.layer.getRadius()) + '">' +
+          '<label class="pop-check"><input type="checkbox" class="p-center"' +
+          (f.showCenter !== false ? ' checked' : '') + '> แสดงจุดศูนย์กลาง</label>'
         : '') +
       '<div class="measure">' + measureHtml(f) + '</div>' +
       '<label>สี</label><div class="pop-colors">' +
@@ -319,8 +363,14 @@
       if (!isFinite(km) || km <= 0) return;
       f.layer.setRadius(km * 1000);
       syncLabel(f);
+      syncCenterDot(f);
       refreshOpenPopup(f);
       App.render();
+    });
+
+    var centerChk = pop.querySelector('.p-center');
+    if (centerChk) centerChk.addEventListener('change', function () {
+      App.setCenterDot(f.id, this.checked);
     });
 
     pop.querySelectorAll('.pop-colors button').forEach(function (b) {
@@ -371,7 +421,9 @@
       visible: true,
       ring: !!opts.ring,
       groupId: opts.groupId || null,
-      labelLayer: null
+      showCenter: App.showCircleCenters,   // วงกลม: แสดงจุดศูนย์กลางหรือไม่
+      labelLayer: null,
+      centerDot: null
     };
     App.features.set(f.id, f);
     order.push(f.id);
@@ -387,6 +439,7 @@
     ].join(' ');
     layer.on(CHANGE_EVENTS, function () {
       syncLabel(f);
+      syncCenterDot(f);
       refreshOpenPopup(f);
       App.render();
     });
@@ -434,6 +487,7 @@
     order.push(f.id);
     if (f.visible) App.drawnItems.addLayer(f.layer);
     syncLabel(f);
+    syncCenterDot(f);
     applyDrag(f);
     App.render();
   }
@@ -454,6 +508,11 @@
       App.drawnItems.removeLayer(f.labelLayer);
       if (map.hasLayer(f.labelLayer)) map.removeLayer(f.labelLayer);
       f.labelLayer = null;
+    }
+    if (f.centerDot) {
+      App.drawnItems.removeLayer(f.centerDot);
+      if (map.hasLayer(f.centerDot)) map.removeLayer(f.centerDot);
+      f.centerDot = null;
     }
     if (App.drawnItems.hasLayer(f.layer)) App.drawnItems.removeLayer(f.layer);
     if (map.hasLayer(f.layer)) map.removeLayer(f.layer);

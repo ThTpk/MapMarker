@@ -98,7 +98,11 @@
 
   <main id="map-wrap">
     <div id="map"></div>
-    <button type="button" id="btn-locate" class="map-btn" title="ไปยังตำแหน่งของฉัน" aria-label="ไปยังตำแหน่งของฉัน">◎</button>
+    <div class="map-tools">
+      <button type="button" id="btn-fullscreen" class="map-btn" title="ขยายแผนที่เต็มจอ (กด F)" aria-label="ขยายแผนที่เต็มจอ">⛶</button>
+      <button type="button" id="btn-wide" class="map-btn only-desktop" title="ซ่อน/แสดงแถบเครื่องมือ (กด H)" aria-label="ซ่อนแถบเครื่องมือ">⇤</button>
+      <button type="button" id="btn-locate" class="map-btn" title="ไปยังตำแหน่งของฉัน" aria-label="ไปยังตำแหน่งของฉัน">◎</button>
+    </div>
     <div id="coords" class="coords" aria-live="off">—</div>
   </main>
 

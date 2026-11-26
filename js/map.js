@@ -107,6 +107,47 @@ window.App = (function () {
     }, { enableHighAccuracy: true, timeout: 10000 });
   });
 
+  /* ---------- เต็มจอ / ซ่อนแถบเครื่องมือ ---------- */
+  var appEl = document.getElementById('app');
+  var fsBtn = document.getElementById('btn-fullscreen');
+  var wideBtn = document.getElementById('btn-wide');
+
+  function fsNow() { return document.fullscreenElement || document.webkitFullscreenElement || null; }
+
+  function toggleFullscreen() {
+    if (fsNow()) {
+      (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+      return;
+    }
+    var req = appEl.requestFullscreen || appEl.webkitRequestFullscreen;
+    // เบราว์เซอร์บางตัว (หรือหน้าที่ฝังอยู่ใน iframe) ไม่อนุญาตเต็มจอ → ซ่อนแถบเครื่องมือแทน
+    if (!req) { toggleWide(); return; }
+    var p;
+    try { p = req.call(appEl); } catch (err) { toggleWide(); return; }
+    if (p && p['catch']) p['catch'](function () { toggleWide(); });
+  }
+
+  function onFsChange() {
+    var on = !!fsNow();
+    fsBtn.textContent = on ? '⤡' : '⛶';
+    fsBtn.title = on ? 'ออกจากเต็มจอ (Esc)' : 'ขยายแผนที่เต็มจอ (กด F)';
+    fsBtn.classList.toggle('on', on);
+    setTimeout(function () { map.invalidateSize(); }, 150);
+  }
+
+  fsBtn.addEventListener('click', toggleFullscreen);
+  document.addEventListener('fullscreenchange', onFsChange);
+  document.addEventListener('webkitfullscreenchange', onFsChange);
+
+  function toggleWide() {
+    var hidden = document.body.classList.toggle('side-hidden');
+    wideBtn.textContent = hidden ? '⇥' : '⇤';
+    wideBtn.title = (hidden ? 'แสดง' : 'ซ่อน') + 'แถบเครื่องมือ (กด H)';
+    wideBtn.classList.toggle('on', hidden);
+    setTimeout(function () { map.invalidateSize(); }, 50);
+  }
+  wideBtn.addEventListener('click', toggleWide);
+
   /* ---------- ธีมสว่าง / มืด ---------- */
   var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
   function setTheme(t) {
@@ -136,6 +177,8 @@ window.App = (function () {
     drawnItems: drawnItems,
     basemaps: BASEMAPS,
     setBasemap: setBasemap,
+    toggleFullscreen: toggleFullscreen,
+    toggleWide: toggleWide,
     features: new Map()   // id -> { id, layer, shape, name, note, color, visible }
   };
 })();

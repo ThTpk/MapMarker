@@ -227,6 +227,8 @@
     var t = e.target;
     if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
     if (e.key === 'Escape') { App.setMode(null); map.closePopup(); }
+    else if (e.key === 'f' || e.key === 'F') App.toggleFullscreen();
+    else if ((e.key === 'h' || e.key === 'H') && !isMobile()) App.toggleWide();
   });
 
   /* ---------- แผงเครื่องมือบนมือถือ ---------- */

@@ -99,7 +99,8 @@
       var ll = f.layer.getLatLng();
       if (!f.centerDot) {
         f.centerDot = L.circleMarker(ll, {
-          radius: 4, color: '#ffffff', weight: 2,
+          pane: 'centerDots',
+          radius: 5, color: '#ffffff', weight: 2.5,
           fillColor: f.color, fillOpacity: 1, interactive: false
         });
       } else {
@@ -107,10 +108,21 @@
         f.centerDot.setStyle({ fillColor: f.color });
       }
       if (!App.drawnItems.hasLayer(f.centerDot)) App.drawnItems.addLayer(f.centerDot);
+      // ให้อยู่บนสุดเสมอ ไม่ถูกวงกลมที่วาดทีหลังทับ
+      if (f.centerDot.bringToFront) f.centerDot.bringToFront();
     } else if (f.centerDot) {
       App.drawnItems.removeLayer(f.centerDot);
       if (map.hasLayer(f.centerDot)) map.removeLayer(f.centerDot);
     }
+  }
+
+  /** ยกจุดศูนย์กลางทุกจุดขึ้นชั้นบนสุด (เรียกหลังมีรูปใหม่มาวางทับ) */
+  function raiseCenterDots() {
+    App.features.forEach(function (f) {
+      if (f.centerDot && App.drawnItems.hasLayer(f.centerDot) && f.centerDot.bringToFront) {
+        f.centerDot.bringToFront();
+      }
+    });
   }
 
   App.setCenterDot = function (id, on) {
@@ -465,6 +477,7 @@
     });
 
     applyDrag(f);
+    raiseCenterDots();
     App.render();
     return f;
   }
@@ -548,6 +561,7 @@
       if (visible) App.drawnItems.addLayer(f.labelLayer);
       else App.drawnItems.removeLayer(f.labelLayer);
     }
+    syncCenterDot(f);   // จุดศูนย์กลางต้องซ่อน/แสดงตามวงกลมด้วย
     applyDrag(f);
     App.render();
   };

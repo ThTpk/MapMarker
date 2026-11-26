@@ -66,6 +66,11 @@ window.App = (function () {
   /* กลุ่มเก็บทุกรูปที่วาด */
   var drawnItems = L.featureGroup().addTo(map);
 
+  /* เลเยอร์เฉพาะของจุดศูนย์กลางวงกลม ให้อยู่เหนือหมุดและรูปอื่น จะได้ไม่ถูกบัง */
+  map.createPane('centerDots');
+  map.getPane('centerDots').style.zIndex = 640;
+  map.getPane('centerDots').style.pointerEvents = 'none';
+
   L.control.scale({ metric: true, imperial: false, position: 'bottomright' }).addTo(map);
 
   /* ---------- พิกัดเมาส์ ---------- */

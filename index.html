@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Map Markers — วาด Marker และเส้นบนแผนที่</title>
+<meta name="description" content="เว็บแผนที่สำหรับปักหมุด วาดเส้น และวัดระยะทาง/พื้นที่ ใช้งานได้ทันทีในเบราว์เซอร์">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📍</text></svg>">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.17.0/dist/leaflet-geoman.css">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+  <aside id="sidebar">
+    <header class="side-head">
+      <div class="brand">
+        <span class="logo">📍</span>
+        <div>
+          <h1>Map Markers</h1>
+          <p>วาด Marker และเส้นบนแผนที่</p>
+        </div>
+      </div>
+      <button id="btn-theme" class="icon-btn" title="สลับโหมดสว่าง / มืด" aria-label="สลับโหมดสว่างและมืด">◐</button>
+      <button id="btn-collapse" class="icon-btn only-mobile" title="ย่อแผงเครื่องมือ" aria-label="ย่อแผงเครื่องมือ">▾</button>
+    </header>
+
+    <div class="side-body">
+      <section class="panel">
+        <form id="search-form" autocomplete="off">
+          <input id="search-input" type="search" placeholder="ค้นหาสถานที่ หรือพิมพ์ 13.7563, 100.5018" aria-label="ค้นหาสถานที่">
+          <button type="submit" class="go" title="ค้นหา">ค้นหา</button>
+        </form>
+        <ul id="search-results" class="results" hidden></ul>
+      </section>
+
+      <section class="panel">
+        <h2>เครื่องมือวาด</h2>
+        <div class="tools" id="tools">
+          <button type="button" data-mode="Marker"><b>📍</b>จุด</button>
+          <button type="button" data-mode="Line"><b>⟋</b>เส้น</button>
+          <button type="button" data-mode="Polygon"><b>⬠</b>พื้นที่</button>
+          <button type="button" data-mode="Rectangle"><b>▭</b>สี่เหลี่ยม</button>
+          <button type="button" data-mode="Circle"><b>◯</b>วงกลม</button>
+          <button type="button" data-mode="edit"><b>✎</b>แก้รูป</button>
+          <button type="button" data-mode="drag"><b>✥</b>ลาก</button>
+          <button type="button" data-mode="remove" class="danger"><b>🗑</b>ลบ</button>
+        </div>
+        <div class="row-between">
+          <div class="colors" id="colors" role="radiogroup" aria-label="เลือกสี"></div>
+          <button type="button" id="btn-undo" class="link" disabled>↶ ย้อนชิ้นสุดท้าย</button>
+        </div>
+        <p class="hint" id="hint">เลือกเครื่องมือ แล้วคลิกบนแผนที่ · กด <kbd>Esc</kbd> เพื่อยกเลิก</p>
+      </section>
+
+      <section class="panel">
+        <h2>แผนที่พื้นหลัง</h2>
+        <select id="basemap" aria-label="เลือกแผนที่พื้นหลัง"></select>
+      </section>
+
+      <section class="panel list-panel">
+        <h2>
+          รายการที่วาด <span id="count" class="count">0</span>
+          <button type="button" id="btn-clear" class="link danger" hidden>ลบทั้งหมด</button>
+        </h2>
+        <ul id="feature-list" class="features"></ul>
+        <p id="empty" class="empty">ยังไม่มีรายการ — เริ่มวาดจากเครื่องมือด้านบน</p>
+      </section>
+    </div>
+
+    <footer class="side-foot">
+      <p id="totals" class="totals"></p>
+      <p class="warn">ข้อมูลที่วาดไม่ถูกบันทึก — รีเฟรชหน้าแล้วจะหายทั้งหมด</p>
+    </footer>
+  </aside>
+
+  <main id="map-wrap">
+    <div id="map"></div>
+    <button type="button" id="btn-locate" class="map-btn" title="ไปยังตำแหน่งของฉัน" aria-label="ไปยังตำแหน่งของฉัน">◎</button>
+    <div id="coords" class="coords" aria-live="off">—</div>
+  </main>
+
+  <button type="button" id="btn-open" class="fab only-mobile">เครื่องมือ</button>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.17.0/dist/leaflet-geoman.min.js"></script>
+<script src="js/measure.js"></script>
+<script src="js/map.js"></script>
+<script src="js/draw.js"></script>
+<script src="js/ui.js"></script>
+</body>
+</html>

@@ -200,6 +200,8 @@
   /* ---------- ลากย้ายรูปที่วาด ---------- */
   function applyDrag(f) {
     if (!f.layer.pm || !f.layer.pm.enableLayerDrag) return;
+    // โหมดแก้รูปจัดการจุดจับและการลากเอง ถ้าไปสั่ง enable/disableLayerDrag จะไปปิดโหมดแก้รูปทิ้ง
+    if (mode === 'edit') return;
     var on = App.dragAllowed && f.visible && mode !== 'remove';
     try {
       if (on) f.layer.pm.enableLayerDrag();
@@ -388,9 +390,11 @@
       refreshOpenPopup(f);
       App.render();
     });
-    // ปรับขนาดอยู่ → โชว์ขนาดสด ๆ เหมือนตอนวาด
-    layer.on('pm:markerdragstart pm:markerdrag', function () { showSize(sizeHtml(layer)); });
-    layer.on('pm:markerdragend', hideSize);
+    // ปรับขนาดอยู่ → โชว์ขนาดสด ๆ เหมือนตอนวาด ('pm:change' ยิงถี่กว่า ตัวเลขจึงลื่น)
+    var resizing = false;
+    layer.on('pm:markerdragstart', function () { resizing = true; showSize(sizeHtml(layer)); });
+    layer.on('pm:markerdrag pm:change', function () { if (resizing) showSize(sizeHtml(layer)); });
+    layer.on('pm:markerdragend', function () { resizing = false; hideSize(); });
 
     layer.on('pm:dragstart', function () { onGroupDragStart(f); });
     layer.on('pm:drag', function () { onGroupDrag(f); });
@@ -614,7 +618,17 @@
     mode = (next === mode) ? null : next;
 
     var km = fixedKm();
-    if (mode === 'edit') map.pm.enableGlobalEditMode();
+    // ต้องปิด layer drag ก่อนเข้าโหมดแก้รูป ไม่งั้น Geoman จะปิดโหมดแก้รูปทิ้งและไม่มีจุดจับ
+    if (mode === 'edit') {
+      App.features.forEach(function (f) {
+        try {
+          if (f.layer.pm && f.layer.pm.layerDragEnabled && f.layer.pm.layerDragEnabled()) {
+            f.layer.pm.disableLayerDrag();
+          }
+        } catch (err) {}
+      });
+      map.pm.enableGlobalEditMode();
+    }
     else if (mode === 'remove') map.pm.enableGlobalRemovalMode();
     else if (mode === 'rings') map.on('click', onRingClick);
     else if (km && (mode === 'Circle' || mode === 'Rectangle')) {
